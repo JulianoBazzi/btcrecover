@@ -3489,6 +3489,34 @@ class Test12BrainwalletDecryption(unittest.TestCase):
                                     password="btcr-test-password:p2pkh",
                                     check_uncompressed=False)
 
+    # Addresses with several leading '1's come from hash160s that start with zero
+    # bytes. See https://github.com/3rdIteration/btcrecover/issues/448
+    def test_brainwallet_bitcoin_p2pkh_uncompressed_leading_ones_cpu(self):
+        self.brainwallet_tester_cpu(addresses="111aFYrUz9kZH2CKqGTTtfDTgDgUvvZSf",
+                                    password="71916",
+                                    check_compressed=False)
+
+    def test_brainwallet_bitcoin_p2pkh_compressed_leading_ones_cpu(self):
+        self.brainwallet_tester_cpu(addresses="111dDtjPjTPuSbyTjY7i2JfHkoTNoBn7J",
+                                    password="38251",
+                                    check_uncompressed=False)
+
+    def test_base58_address_leading_ones_roundtrip(self):
+        # Issue #448: decoding these addresses always worked (so brainwallet matches
+        # were found), but re-encoding the hash160 used to add an extra '1' to the
+        # displayed address (e.g. 1111aFYr... instead of 111aFYr...).
+        from btcrecover import btcrseed
+        from lib.bitcoinlib import encoding
+
+        for address in ("111aFYrUz9kZH2CKqGTTtfDTgDgUvvZSf",
+                        "111dDtjPjTPuSbyTjY7i2JfHkoTNoBn7J",
+                        "1111111111111111111114oLvT2",  # all-zero hash160
+                        "1BBRWFHjFhEQc1iS6WTQCtPu2GtZvrRcwy"):  # no leading zero bytes
+            with self.subTest(address=address):
+                hash160 = btcrseed.WalletBase._addresses_to_hash160s([address]).pop()
+                self.assertEqual(len(hash160), 20)
+                self.assertEqual(encoding.pubkeyhash_to_addr_base58(hash160), address)
+
     @skipUnless(has_any_opencl_devices, "requires OpenCL and a compatible device")
     def test_brainwallet_bitcoin_p2pkh_compressed_opencl(self):
         self.brainwallet_tester_opencl(addresses = "1BBRWFHjFhEQc1iS6WTQCtPu2GtZvrRcwy",
